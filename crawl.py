@@ -102,3 +102,50 @@ def get_html(url: str):
     raise Exception(f"got non-HTML response: {content_type}")
 
   return response.text
+
+
+def crawl_page(base_url, current_url=None, page_data=None, max_pages=30):
+  """Recursively crawl pages on a domain and collect their data."""
+  if current_url is None:
+    current_url = base_url
+  if page_data is None:
+    page_data = {}
+  
+  if len(page_data) >= max_pages:
+      return page_data
+      
+  parsed_base_url = urlsplit(base_url)
+  parsed_current_url = urlsplit(current_url)
+  dom_base = parsed_base_url.netloc
+  dom_current = parsed_current_url.netloc  
+  if dom_current != dom_base:
+    return page_data
+    
+  normalized_url = normalize_url(current_url)
+  if normalized_url in page_data:
+    return page_data
+    
+  print(f"crawling {current_url}")
+  html = safe_get_html(current_url)
+  if html is None:
+      return page_data
+  
+  page_info = extract_page_data(html, current_url)
+  page_data[normalized_url] = page_info
+
+  next_urls = page_info["outgoing_links"]
+  for next_url in next_urls:
+    if len(page_data) >= max_pages:
+                break
+    page_data = crawl_page(base_url, next_url, page_data, max_pages)
+
+  return page_data
+
+
+def safe_get_html(url: str) -> str | None:
+    """Fetch HTML without crashing if the request fails."""
+    try:
+        return get_html(url)
+    except Exception as e:
+        print(f"{e}")
+        return None
